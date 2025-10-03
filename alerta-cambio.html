@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerta de Câmbio - GlobalSend</title>
+    <link rel="stylesheet" href="css.css">
+</head>
+<body>
+    <header>
+        <div class="logo">SI<span class="green"> CONVERSOR</span>🌐</div>
+        <nav>
+            <a href="index.html">Início</a>
+    
+    </header>
+
+    <section class="hero">
+        <div class="hero-text">
+            <h1>Alerta de Câmbio 🔔</h1>
+            <p>Configure alertas e receba notificações quando as taxas de câmbio atingirem seus valores ideais</p>
+            <div id="currentRates" class="results-container">
+                <div class="loading">Carregando cotações atuais...</div>
+            </div>
+        </div>
+        <div class="hero-form">
+            <label for="moeda-origem">Moeda de Origem</label>
+            <select id="moeda-origem">
+                <option value="BRL">BRL - Real Brasileiro</option>
+                <option value="USD">USD - Dólar Americano</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - Libra Esterlina</option>
+                <option value="JPY">JPY - Iene Japonês</option>
+            </select>
+
+            <label for="moeda-destino">Moeda de Destino</label>
+            <select id="moeda-destino">
+                <option value="USD">USD - Dólar Americano</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - Libra Esterlina</option>
+                <option value="JPY">JPY - Iene Japonês</option>
+                <option value="BRL">BRL - Real Brasileiro</option>
+            </select>
+
+            <label for="taxa-alvo">Taxa Alvo Desejada</label>
+            <input type="number" id="taxa-alvo" placeholder="Ex: 5.25" step="0.01">
+
+            <label for="email">E-mail para Notificação</label>
+            <input type="email" id="email" placeholder="seu@email.com">
+
+            <div id="currentRateInfo" class="exchange-rate"></div>
+            <button class="send-btn" onclick="createAlert()">Criar Alerta</button>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="feature">
+            <h3>📊 Meus Alertas Ativos</h3>
+            <p>Visualize e gerencie todos os seus alertas de câmbio</p>
+            <div id="alertsList" class="alert-list">
+            </div>
+            <button onclick="loadAlerts()">Carregar Alertas</button>
+        </div>
+        <div class="feature">
+            <h3>📈 Histórico de Taxas</h3>
+            <p>Acompanhe a variação das taxas nos últimos meses</p>
+            <div id="historicalChart" class="historical-chart">
+            </div>
+            <button onclick="loadHistoricalData()">Carregar Histórico</button>
+        </div>
+        <div class="feature">
+            <h3>⚙️ Configurações</h3>
+            <p>Personalize como receber suas notificações</p>
+            <button onclick="showSettings()">Configurar</button>
+        </div>
+    </section>
+
+    <footer>
+        <a href="index.html">Voltar ao Início</a>
+        <a href="#">Quem Somos</a>
+        <a href="#">Termos e Condições</a>
+        <a href="#">Política de Privacidade</a>
+    </footer>
+
+    <script>
+        const API_KEY = '3ec7a65497faa33175fd8b05';
+        const API_BASE = 'https://v6.exchangerate-api.com/v6';
+
+        async function loadCurrentRates() {
+            try {
+                const response = await fetch(`${API_BASE}/${API_KEY}/latest/BRL`);
+                const data = await response.json();
+                
+                if (data.result === 'success') {
+                    const ratesContainer = document.getElementById('currentRates');
+                    ratesContainer.innerHTML = `
+                        <div class="result-label">Cotações Atuais (vs BRL)</div>
+                        <div class="result-value">USD: ${data.conversion_rates.USD.toFixed(4)}</div>
+                        <div class="result-value">EUR: ${data.conversion_rates.EUR.toFixed(4)}</div>
+                        <div class="result-value">GBP: ${data.conversion_rates.GBP.toFixed(4)}</div>
+                        <div class="result-value">JPY: ${data.conversion_rates.JPY.toFixed(4)}</div>
+                        <div style="font-size: 12px; color: #999; margin-top: 10px;">Atualizado: ${new Date().toLocaleString()}</div>
+                    `;
+                } else {
+                    throw new Error(data['error-type']);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar cotações:', error);
+                document.getElementById('currentRates').innerHTML = `
+                    <div class="error">Erro ao carregar cotações. Usando dados simulados.</div>
+                    <div class="result-value">USD: 5.20</div>
+                    <div class="result-value">EUR: 5.60</div>
+                    <div class="result-value">GBP: 6.50</div>
+                    <div class="result-value">JPY: 0.035</div>
+                `;
+            }
+        }
+
+        async function getCurrentRate(from, to) {
+            try {
+                const response = await fetch(`${API_BASE}/${API_KEY}/latest/${from}`);
+                const data = await response.json();
+                
+                if (data.result === 'success' && data.conversion_rates[to]) {
+                    return data.conversion_rates[to];
+                } else {
+                    throw new Error('Taxa não encontrada');
+                }
+            } catch (error) {
+
+                const simulatedRates = {
+                    'BRL-USD': 0.19, 'BRL-EUR': 0.18, 'BRL-GBP': 0.15, 'BRL-JPY': 28.5,
+                    'USD-BRL': 5.20, 'USD-EUR': 0.92, 'USD-GBP': 0.79, 'USD-JPY': 150,
+                    'EUR-BRL': 5.60, 'EUR-USD': 1.09, 'EUR-GBP': 0.86, 'EUR-JPY': 163,
+                    'GBP-BRL': 6.50, 'GBP-USD': 1.27, 'GBP-EUR': 1.16, 'GBP-JPY': 190,
+                    'JPY-BRL': 0.035, 'JPY-USD': 0.0067, 'JPY-EUR': 0.0061, 'JPY-GBP': 0.0053
+                };
+                
+                return simulatedRates[`${from}-${to}`] || 1;
+            }
+        }
+
+        async function createAlert() {
+            const fromCurrency = document.getElementById('moeda-origem').value;
+            const toCurrency = document.getElementById('moeda-destino').value;
+            const targetRate = document.getElementById('taxa-alvo').value;
+            const email = document.getElementById('email').value;
+
+            if (!targetRate || !email) {
+                alert('Por favor, preencha todos os campos obrigatórios.');
+                return;
+            }
+            const currentRate = await getCurrentRate(fromCurrency, toCurrency);
+            
+            const alert = {
+                id: Date.now(),
+                from: fromCurrency,
+                to: toCurrency,
+                target: parseFloat(targetRate),
+                current: currentRate,
+                email: email,
+                created: new Date().toLocaleString(),
+                active: true,
+                triggered: currentRate >= parseFloat(targetRate)
+            };
+            const alerts = JSON.parse(localStorage.getItem('exchangeAlerts') || '[]');
+            alerts.push(alert);
+            localStorage.setItem('exchangeAlerts', JSON.stringify(alerts));
+            document.getElementById('currentRateInfo').innerHTML = `
+                Taxa atual: 1 ${fromCurrency} = ${currentRate.toFixed(4)} ${toCurrency}
+            `;
+
+            if (alert.triggered) {
+                alert(`⚠️ Atenção! A taxa atual já está acima do seu alvo! (${currentRate.toFixed(4)})`);
+            } else {
+                alert(`Alerta criado com sucesso! Você receberá uma notificação quando a taxa de ${fromCurrency} para ${toCurrency} atingir ${targetRate}`);
+            }
+
+            loadAlerts();
+        }
+
+        function loadAlerts() {
+            const alerts = JSON.parse(localStorage.getItem('exchangeAlerts') || '[]');
+            const alertsList = document.getElementById('alertsList');
+            
+            if (alerts.length === 0) {
+                alertsList.innerHTML = '<p style="color: #999; text-align: center;">Nenhum alerta ativo</p>';
+                return;
+            }
+
+            alertsList.innerHTML = alerts.map(alert => `
+                <div class="alert-item ${alert.triggered ? 'alert-triggered' : 'alert-active'}">
+                    <strong>${alert.from} → ${alert.to}</strong><br>
+                    Meta: ${alert.target}<br>
+                    Atual: ${alert.current.toFixed(4)}<br>
+                    Status: ${alert.triggered ? '✅ ATINGIDO' : '⏳ AGUARDANDO'}<br>
+                    <small>Criado: ${alert.created}</small><br>
+                    <button onclick="deleteAlert(${alert.id})" style="background: #ff4444; color: white; border: none; padding: 5px 10px; border-radius: 3px; margin-top: 5px; cursor: pointer; font-size: 12px;">Excluir</button>
+                </div>
+            `).join('');
+        }
+
+        function deleteAlert(alertId) {
+            const alerts = JSON.parse(localStorage.getItem('exchangeAlerts') || '[]');
+            const filteredAlerts = alerts.filter(alert => alert.id !== alertId);
+            localStorage.setItem('exchangeAlerts', JSON.stringify(filteredAlerts));
+            loadAlerts();
+        }
+
+        function loadHistoricalData() {
+            const chart = document.getElementById('historicalChart');
+            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'];
+            const values = [5.15, 5.22, 5.18, 5.25, 5.30, 5.20];
+            
+            chart.innerHTML = months.map((month, index) => `
+                <div class="chart-bar" style="height: ${(values[index] - 5.0) * 100}px">
+                    <div class="chart-bar-label">${month}</div>
+                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); color: #00f0ff; font-size: 10px;">${values[index]}</div>
+                </div>
+            `).join('');
+        }
+
+        function showSettings() {
+            alert('Configurações de notificação:\n- E-mail: Ativo\n- Push: Disponível\n- SMS: Disponível\n\nVocê será notificado quando suas taxas alvo forem atingidas.');
+        }
+        document.getElementById('moeda-origem').addEventListener('change', updateCurrentRate);
+        document.getElementById('moeda-destino').addEventListener('change', updateCurrentRate);
+
+        async function updateCurrentRate() {
+            const fromCurrency = document.getElementById('moeda-origem').value;
+            const toCurrency = document.getElementById('moeda-destino').value;
+            
+            const currentRate = await getCurrentRate(fromCurrency, toCurrency);
+            document.getElementById('currentRateInfo').innerHTML = `
+                Taxa atual: 1 ${fromCurrency} = ${currentRate.toFixed(4)} ${toCurrency}
+            `;
+        }
+        loadCurrentRates();
+        loadAlerts();
+        loadHistoricalData();
+        updateCurrentRate();
+    </script>
+</body>
+</html>

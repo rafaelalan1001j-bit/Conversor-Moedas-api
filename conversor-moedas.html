@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor de Moedas - GlobalSend</title>
+    <link rel="stylesheet" href="css.css">
+</head>
+<body>
+    <header>
+        <div class="logo">SI<span class="green"> CONVERSOR</span>🌐</div>
+        <nav>
+            <a href="index.html">Início</a>
+     
+    </header>
+
+    <section class="hero">
+        <div class="hero-text">
+            <h1>Conversor de Moedas 💱</h1>
+            <p>Converta valores entre mais de 150 moedas internacionais em tempo real</p>
+            <div id="popularRates" class="results-container">
+                <div class="loading">Carregando taxas populares...</div>
+            </div>
+        </div>
+        <div class="hero-form" style="width: 400px;">
+            <label for="valor-converter">Valor a Converter</label>
+            <input type="number" id="valor-converter" placeholder="100.00" step="0.01" value="100">
+
+            <label for="moeda-de">De:</label>
+            <select id="moeda-de">
+                <option value="BRL">BRL - Real Brasileiro</option>
+                <option value="USD">USD - Dólar Americano</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - Libra Esterlina</option>
+                <option value="JPY">JPY - Iene Japonês</option>
+                <option value="CAD">CAD - Dólar Canadense</option>
+                <option value="AUD">AUD - Dólar Australiano</option>
+                <option value="CHF">CHF - Franco Suíço</option>
+            </select>
+
+            <label for="moeda-para">Para:</label>
+            <select id="moeda-para">
+                <option value="USD">USD - Dólar Americano</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - Libra Esterlina</option>
+                <option value="JPY">JPY - Iene Japonês</option>
+                <option value="BRL">BRL - Real Brasileiro</option>
+                <option value="CAD">CAD - Dólar Canadense</option>
+                <option value="AUD">AUD - Dólar Australiano</option>
+                <option value="CHF">CHF - Franco Suíço</option>
+            </select>
+
+            <div id="conversionResult" style="background: rgba(0,240,255,0.1); padding: 15px; border-radius: 5px; margin: 20px 0; min-height: 80px;">
+                <div class="loading">Calculando conversão...</div>
+            </div>
+
+            <button class="send-btn" onclick="convertCurrency()">Converter</button>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="feature">
+            <h3>🌍 Moedas Populares</h3>
+            <p>Conversões rápidas entre as moedas mais utilizadas</p>
+            <div id="quickConversions"></div>
+            <button onclick="loadQuickConversions()">Atualizar</button>
+        </div>
+        <div class="feature">
+            <h3>📊 Gráficos</h3>
+            <p>Acompanhe a evolução das taxas com gráficos interativos</p>
+            <div id="conversionChart" class="historical-chart">
+            </div>
+            <button onclick="loadConversionChart()">Ver Gráficos</button>
+        </div>
+        <div class="feature">
+            <h3>💾 Histórico</h3>
+            <p>Salve suas conversões mais frequentes</p>
+            <div id="conversionHistory"></div>
+            <button onclick="loadHistory()">Ver Histórico</button>
+        </div>
+    </section>
+
+    <footer>
+        <a href="index.html">Voltar ao Início</a>
+        <a href="#">Quem Somos</a>
+        <a href="#">Termos e Condições</a>
+        <a href="#">Política de Privacidade</a>
+    </footer>
+
+    <script>
+        const API_KEY = '3ec7a65497faa33175fd8b05';
+        const API_BASE = 'https://v6.exchangerate-api.com/v6';
+
+        async function convertCurrency() {
+            const amount = parseFloat(document.getElementById('valor-converter').value);
+            const fromCurrency = document.getElementById('moeda-de').value;
+            const toCurrency = document.getElementById('moeda-para').value;
+
+            if (!amount || amount <= 0) {
+                alert('Por favor, insira um valor válido.');
+                return;
+            }
+
+            const resultDiv = document.getElementById('conversionResult');
+            resultDiv.innerHTML = '<div class="loading">Convertendo...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/${API_KEY}/latest/${fromCurrency}`);
+                const data = await response.json();
+                
+                if (data.result === 'success' && data.conversion_rates[toCurrency]) {
+                    const rate = data.conversion_rates[toCurrency];
+                    const converted = (amount * rate).toFixed(2);
+                    
+                    resultDiv.innerHTML = `
+                        <p style="color: #00f0ff; font-weight: bold; margin: 0;">Resultado:</p>
+                        <p style="font-size: 24px; color: #28a745; margin: 10px 0 0 0;">${converted} ${toCurrency}</p>
+                        <p style="color: #ccc; font-size: 14px; margin: 5px 0 0 0;">Taxa: 1 ${fromCurrency} = ${rate.toFixed(6)} ${toCurrency}</p>
+                        <p style="color: #28a745; font-size: 12px; margin: 5px 0 0 0;">✅ Dados em tempo real via ExchangeRate-API</p>
+                    `;
+                    saveToHistory(fromCurrency, toCurrency, amount, converted, rate);
+                } else {
+                    throw new Error('Moeda não encontrada');
+                }
+            } catch (error) {
+                console.error('Erro na conversão:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">Erro na conversão. Usando dados simulados.</div>
+                    <p style="font-size: 24px; color: #28a745; margin: 10px 0 0 0;">${(amount * getSimulatedRate(fromCurrency, toCurrency)).toFixed(2)} ${toCurrency}</p>
+                    <p style="color: #ffc107; font-size: 12px; margin: 5px 0 0 0;">*Usando dados simulados</p>
+                `;
+            }
+        }
+
+        function getSimulatedRate(from, to) {
+            const simulatedRates = {
+                'BRL-USD': 0.19, 'BRL-EUR': 0.18, 'BRL-GBP': 0.15, 'BRL-JPY': 28.5, 'BRL-CAD': 0.26, 'BRL-AUD': 0.29, 'BRL-CHF': 0.17,
+                'USD-BRL': 5.20, 'USD-EUR': 0.92, 'USD-GBP': 0.79, 'USD-JPY': 150, 'USD-CAD': 1.35, 'USD-AUD': 1.52, 'USD-CHF': 0.88,
+                'EUR-BRL': 5.60, 'EUR-USD': 1.09, 'EUR-GBP': 0.86, 'EUR-JPY': 163, 'EUR-CAD': 1.47, 'EUR-AUD': 1.65, 'EUR-CHF': 0.96,
+                'GBP-BRL': 6.50, 'GBP-USD': 1.27, 'GBP-EUR': 1.16, 'GBP-JPY': 190, 'GBP-CAD': 1.71, 'GBP-AUD': 1.92, 'GBP-CHF': 1.12,
+                'JPY-BRL': 0.035, 'JPY-USD': 0.0067, 'JPY-EUR': 0.0061, 'JPY-GBP': 0.0053, 'JPY-CAD': 0.0090, 'JPY-AUD': 0.0101, 'JPY-CHF': 0.0059
+            };
+            
+            return simulatedRates[`${from}-${to}`] || 1;
+        }
+
+        function saveToHistory(from, to, amount, converted, rate) {
+            const conversion = {
+                from: from,
+                to: to,
+                amount: amount,
+                converted: converted,
+                rate: rate,
+                date: new Date().toLocaleString()
+            };
+
+            const history = JSON.parse(localStorage.getItem('conversionHistory') || '[]');
+            history.unshift(conversion);
+            if (history.length > 10) history.pop();
+            localStorage.setItem('conversionHistory', JSON.stringify(history));
+            loadHistory();
+        }
+
+        async function loadPopularRates() {
+            try {
+                const response = await fetch(`${API_BASE}/${API_KEY}/latest/BRL`);
+                const data = await response.json();
+                
+                if (data.result === 'success') {
+                    document.getElementById('popularRates').innerHTML = `
+                        <div class="result-label">Taxas vs BRL (Tempo Real)</div>
+                        <div class="result-value">USD: ${data.conversion_rates.USD.toFixed(4)}</div>
+                        <div class="result-value">EUR: ${data.conversion_rates.EUR.toFixed(4)}</div>
+                        <div class="result-value">GBP: ${data.conversion_rates.GBP.toFixed(4)}</div>
+                        <div class="result-value">JPY: ${data.conversion_rates.JPY.toFixed(4)}</div>
+                        <div style="font-size: 12px; color: #28a745; margin-top: 10px;">✅ Dados em tempo real</div>
+                    `;
+                } else {
+                    throw new Error('API error');
+                }
+            } catch (error) {
+                document.getElementById('popularRates').innerHTML = `
+                    <div class="error">Erro ao carregar taxas</div>
+                    <div class="result-value">USD: 5.20</div>
+                    <div class="result-value">EUR: 5.60</div>
+                    <div class="result-value">GBP: 6.50</div>
+                    <div class="result-value">JPY: 0.035</div>
+                `;
+            }
+        }
+
+        async function loadQuickConversions() {
+            const conversions = [
+                { from: 'BRL', to: 'USD', amount: 100 },
+                { from: 'EUR', to: 'BRL', amount: 50 },
+                { from: 'USD', to: 'EUR', amount: 100 }
+            ];
+
+            let html = '';
+            for (const conv of conversions) {
+                try {
+                    const response = await fetch(`${API_BASE}/${API_KEY}/latest/${conv.from}`);
+                    const data = await response.json();
+                    const rate = data.conversion_rates[conv.to];
+                    const converted = (conv.amount * rate).toFixed(2);
+                    
+                    html += `
+                        <div style="background: rgba(0,240,255,0.1); padding: 10px; margin: 5px 0; border-radius: 5px;">
+                            ${conv.amount} ${conv.from} = ${converted} ${conv.to}
+                            <button onclick="quickConvert('${conv.from}', '${conv.to}', ${conv.amount})" style="background: #28a745; color: white; border: none; padding: 2px 8px; border-radius: 3px; margin-left: 5px; cursor: pointer; font-size: 12px;">Usar</button>
+                        </div>
+                    `;
+                } catch (error) {
+                    const simulated = (conv.amount * getSimulatedRate(conv.from, conv.to)).toFixed(2);
+                    html += `
+                        <div style="background: rgba(255,193,7,0.1); padding: 10px; margin: 5px 0; border-radius: 5px;">
+                            ${conv.amount} ${conv.from} = ${simulated} ${conv.to}
+                            <small style="color: #ffc107;">(simulado)</small>
+                            <button onclick="quickConvert('${conv.from}', '${conv.to}', ${conv.amount})" style="background: #28a745; color: white; border: none; padding: 2px 8px; border-radius: 3px; margin-left: 5px; cursor: pointer; font-size: 12px;">Usar</button>
+                        </div>
+                    `;
+                }
+            }
+
+            document.getElementById('quickConversions').innerHTML = html;
+        }
+
+        function quickConvert(from, to, amount) {
+            document.getElementById('valor-converter').value = amount;
+            document.getElementById('moeda-de').value = from;
+            document.getElementById('moeda-para').value = to;
+            convertCurrency();
+        }
+
+        function loadConversionChart() {
+            const chart = document.getElementById('conversionChart');
+            const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+            const rates = [5.18, 5.22, 5.20, 5.25, 5.23, 5.19, 5.21];
+            
+            chart.innerHTML = days.map((day, index) => `
+                <div class="chart-bar" style="height: ${(rates[index] - 5.0) * 50}px">
+                    <div class="chart-bar-label">${day}</div>
+                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); color: #00f0ff; font-size: 10px;">${rates[index]}</div>
+                </div>
+            `).join('');
+        }
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('conversionHistory') || '[]');
+            const historyDiv = document.getElementById('conversionHistory');
+            
+            if (history.length === 0) {
+                historyDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px;">Nenhuma conversão no histórico</p>';
+                return;
+            }
+
+            historyDiv.innerHTML = history.slice(0, 3).map(item => `
+                <div style="background: rgba(0,240,255,0.1); padding: 8px; margin: 5px 0; border-radius: 5px; font-size: 12px;">
+                    <strong>${item.amount} ${item.from} → ${item.converted} ${item.to}</strong><br>
+                    <small style="color: #999;">Taxa: ${item.rate.toFixed(6)}</small><br>
+                    <small style="color: #999;">${item.date}</small>
+                </div>
+            `).join('');
+        }
+        document.getElementById('valor-converter').addEventListener('input', convertCurrency);
+        document.getElementById('moeda-de').addEventListener('change', convertCurrency);
+        document.getElementById('moeda-para').addEventListener('change', convertCurrency);
+        loadPopularRates();
+        loadQuickConversions();
+        loadHistory();
+        loadConversionChart();
+        convertCurrency(); 
+    </script>
+</body>
+</html>

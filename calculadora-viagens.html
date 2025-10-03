@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Viagens - GlobalSend</title>
+    <link rel="stylesheet" href="css.css">
+</head>
+<body>
+    <header>
+        <div class="logo">SI<span class="green"> CONVERSOR</span>🌐</div>
+        <nav>
+            <a href="index.html">Início</a>
+     
+    </header>
+
+    <section class="hero">
+        <div class="hero-text">
+            <h1>Calculadora de Viagens ✈️</h1>
+            <p>Planeje seus gastos e orçamento para viagens internacionais</p>
+            <div id="countryInfo" class="results-container">
+                <div class="loading">Carregando informações do país...</div>
+            </div>
+        </div>
+        <div class="hero-form" style="width: 420px;">
+            <label for="pais-destino">País de Destino</label>
+            <select id="pais-destino" onchange="loadCountryInfo(); calculateTrip(); populateCities();">
+                <option value="US">Estados Unidos</option>
+                <option value="ES">Espanha</option>
+                <option value="FR">França</option>
+                <option value="PT">Portugal</option>
+                <option value="JP">Japão</option>
+                <option value="GB">Reino Unido</option>
+                <option value="CA">Canadá</option>
+                <option value="AU">Austrália</option>
+            </select>
+
+            <label for="cidade-destino">Cidade de Destino</label>
+            <input type="text" id="cidade-destino" placeholder="Ex: Nova York" list="cities">
+            <datalist id="cities"></datalist>
+
+            <label for="duracao-viagem">Duração da Viagem (dias)</label>
+            <input type="number" id="duracao-viagem" placeholder="7" min="1" value="7">
+
+            <label for="orcamento-diario">Orçamento Diário (USD)</label>
+            <input type="number" id="orcamento-diario" placeholder="100.00" step="0.01" value="100">
+
+            <label for="viajantes">Número de Viajantes</label>
+            <input type="number" id="viajantes" placeholder="1" min="1" value="1">
+
+            <div id="calculationResult" style="background: rgba(0,240,255,0.1); padding: 15px; border-radius: 5px; margin: 20px 0; min-height: 80px;">
+                <div class="loading">Calculando orçamento...</div>
+            </div>
+
+            <button class="send-btn" onclick="calculateTrip()">Calcular Viagem</button>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="feature">
+            <h3>🏨 Hospedagem</h3>
+            <p>Calcule custos médios de hospedagem por país</p>
+            <div id="accommodationCosts"></div>
+            <button onclick="loadAccommodationCosts()">Ver Custos</button>
+        </div>
+        <div class="feature">
+            <h3>🍽️ Alimentação</h3>
+            <p>Estime gastos com refeições e alimentação</p>
+            <div id="foodCosts"></div>
+            <button onclick="loadFoodCosts()">Calcular</button>
+        </div>
+        <div class="feature">
+            <h3>🚗 Transporte</h3>
+            <p>Preços médios de transporte local</p>
+            <div id="transportCosts"></div>
+            <button onclick="loadTransportCosts()">Ver Valores</button>
+        </div>
+    </section>
+
+    <footer>
+        <a href="index.html">Voltar ao Início</a>
+        <a href="#">Quem Somos</a>
+        <a href="#">Termos e Condições</a>
+        <a href="#">Política de Privacidade</a>
+    </footer>
+
+    <script>
+        const API_KEY = '3ec7a65497faa33175fd8b05';
+        const API_BASE = 'https://v6.exchangerate-api.com/v6';
+        const COUNTRY_API = 'https://restcountries.com/v3.1/alpha/';
+
+    
+        const countryCosts = {
+            'US': { accommodation: 120, food: 40, transport: 30, currency: 'USD', name: 'Estados Unidos' },
+            'ES': { accommodation: 80, food: 30, transport: 15, currency: 'EUR', name: 'Espanha' },
+            'FR': { accommodation: 90, food: 35, transport: 20, currency: 'EUR', name: 'França' },
+            'PT': { accommodation: 60, food: 25, transport: 12, currency: 'EUR', name: 'Portugal' },
+            'JP': { accommodation: 100, food: 35, transport: 25, currency: 'JPY', name: 'Japão' },
+            'GB': { accommodation: 110, food: 38, transport: 22, currency: 'GBP', name: 'Reino Unido' },
+            'CA': { accommodation: 95, food: 32, transport: 18, currency: 'CAD', name: 'Canadá' },
+            'AU': { accommodation: 105, food: 36, transport: 20, currency: 'AUD', name: 'Austrália' }
+        };
+
+
+        const citiesByCountry = {
+            'US': ['Nova York', 'Los Angeles', 'Chicago', 'Houston', 'Miami', 'San Francisco', 'Las Vegas', 'Boston', 'Seattle', 'Orlando'],
+            'ES': ['Madri', 'Barcelona', 'Valência', 'Sevilha', 'Bilbao', 'Málaga', 'Palma', 'Murcia', 'Las Palmas', 'Saragoça'],
+            'FR': ['Paris', 'Marselha', 'Lyon', 'Toulouse', 'Nice', 'Nantes', 'Estrasburgo', 'Bordeaux', 'Lille', 'Rennes'],
+            'PT': ['Lisboa', 'Porto', 'Braga', 'Coimbra', 'Setúbal', 'Faro', 'Aveiro', 'Guimarães', 'Leiria', 'Viseu'],
+            'JP': ['Tóquio', 'Osaka', 'Quioto', 'Nagoya', 'Sapporo', 'Fukuoka', 'Kobe', 'Kawasaki', 'Hiroshima', 'Sendai'],
+            'GB': ['Londres', 'Manchester', 'Birmingham', 'Glasgow', 'Liverpool', 'Bristol', 'Edimburgo', 'Leeds', 'Newcastle', 'Sheffield'],
+            'CA': ['Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Ottawa', 'Edmonton', 'Quebec', 'Winnipeg', 'Hamilton', 'Halifax'],
+            'AU': ['Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide', 'Gold Coast', 'Camberra', 'Newcastle', 'Hobart', 'Darwin']
+        };
+
+        
+        function populateCities() {
+            const countryCode = document.getElementById('pais-destino').value;
+            const datalist = document.getElementById('cities');
+            
+            
+            datalist.innerHTML = '';
+            
+            const cities = citiesByCountry[countryCode] || [];
+            
+            
+            cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city;
+                datalist.appendChild(option);
+            });
+            document.getElementById('cidade-destino').value = '';
+        }
+
+
+        async function loadCountryInfo() {
+            const countryCode = document.getElementById('pais-destino').value;
+            const infoDiv = document.getElementById('countryInfo');
+
+            try {
+                const response = await fetch(`${COUNTRY_API}${countryCode}`);
+                const data = await response.json();
+                const country = data[0];
+                const exchangeRate = await getExchangeRate('USD', countryCosts[countryCode].currency);
+                
+                infoDiv.innerHTML = `
+                    <div class="result-label">${country.name.common}</div>
+                    <div style="color: #ccc; font-size: 14px;">
+                        Capital: ${country.capital?.[0] || 'N/A'}<br>
+                        Moeda: ${Object.keys(country.currencies || {})[0] || 'N/A'}<br>
+                        Taxa USD: 1 USD = ${exchangeRate.toFixed(4)} ${countryCosts[countryCode].currency}<br>
+                        População: ${(country.population / 1000000).toFixed(1)}M
+                    </div>
+                `;
+            } catch (error) {
+                const countryData = countryCosts[countryCode];
+                infoDiv.innerHTML = `
+                    <div class="result-label">${countryData.name}</div>
+                    <div style="color: #ccc; font-size: 14px;">
+                        Moeda: ${countryData.currency}<br>
+                        Custo médio diário: $${(countryData.accommodation + countryData.food + countryData.transport).toFixed(0)} USD<br>
+                        ⚠️ Informações básicas (detalhes via API indisponível)
+                    </div>
+                `;
+            }
+        }
+
+        async function getExchangeRate(from, to) {
+            const simulatedRates = {
+                'USD-EUR': 0.92, 'USD-GBP': 0.79, 'USD-JPY': 150, 'USD-CAD': 1.35, 'USD-AUD': 1.52,
+                'EUR-USD': 1.09, 'GBP-USD': 1.27, 'JPY-USD': 0.0067, 'CAD-USD': 0.74, 'AUD-USD': 0.66
+            };
+            if (from === to) return 1;
+            return simulatedRates[`${from}-${to}`] || 1;
+        }
+
+        async function calculateTrip() {
+            const countryCode = document.getElementById('pais-destino').value;
+            const city = document.getElementById('cidade-destino').value;
+            const duration = parseInt(document.getElementById('duracao-viagem').value);
+            const dailyBudget = parseFloat(document.getElementById('orcamento-diario').value);
+            const travelers = parseInt(document.getElementById('viajantes').value);
+
+            if (!duration || !dailyBudget || !travelers) {
+                document.getElementById('calculationResult').innerHTML = '<div class="warning" style="font-size: 14px;">Preencha todos os campos obrigatórios.</div>';
+                return;
+            }
+
+            const resultDiv = document.getElementById('calculationResult');
+            resultDiv.innerHTML = '<div class="loading">Calculando com dados em tempo real...</div>';
+
+            try {
+                const countryData = countryCosts[countryCode];
+                const totalBudgetUSD = dailyBudget * duration * travelers;
+                const exchangeRate = await getExchangeRate('USD', countryData.currency);
+                const convertedAmount = totalBudgetUSD * exchangeRate;
+                const breakdown = await calculateBreakdown(countryCode, duration, travelers);
+
+                resultDiv.innerHTML = `
+                    <p style="color: #00f0ff; font-weight: bold; margin: 0;">Orçamento Total:</p>
+                    <p style="font-size: 24px; color: #28a745; margin: 10px 0 0 0;">$${totalBudgetUSD.toFixed(2)} USD</p>
+                    <p style="color: #ccc; font-size: 14px; margin: 5px 0 0 0;">≈ ${convertedAmount.toFixed(2)} ${countryData.currency}</p>
+                    <p style="color: #28a745; font-size: 12px; margin: 5px 0 0 0;">✅ Taxa atual: 1 USD = ${exchangeRate.toFixed(4)} ${countryData.currency}</p>
+                    <div style="margin-top: 15px; font-size: 12px; color: #ccc;">
+                        <strong>Detalhamento (USD):</strong><br>
+                        • Hospedagem: $${breakdown.accommodation}<br>
+                        • Alimentação: $${breakdown.food}<br>
+                        • Transporte: $${breakdown.transport}<br>
+                        • Outros: $${breakdown.other}
+                    </div>
+                `;
+
+                saveTripCalculation(city, countryCode, duration, travelers, totalBudgetUSD);
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">Erro no cálculo. Usando dados simulados.</div>
+                    <p style="font-size: 24px; color: #28a745; margin: 10px 0 0 0;">$${(dailyBudget * duration * travelers).toFixed(2)} USD</p>
+                `;
+            }
+        }
+
+        async function calculateBreakdown(countryCode, duration, travelers) {
+            const costs = countryCosts[countryCode];
+            const accommodation = costs.accommodation * duration * travelers;
+            const food = costs.food * duration * travelers;
+            const transport = costs.transport * duration * travelers;
+            const other = (accommodation + food + transport) * 0.2; 
+            
+            return {
+                accommodation: accommodation.toFixed(2),
+                food: food.toFixed(2),
+                transport: transport.toFixed(2),
+                other: other.toFixed(2)
+            };
+        }
+
+        function loadAccommodationCosts() {
+            const countryCode = document.getElementById('pais-destino').value;
+            const costs = countryCosts[countryCode];
+            
+            document.getElementById('accommodationCosts').innerHTML = `
+                <div style="text-align: left; font-size: 14px; color: #ccc;">
+                    <strong>Médias diárias (USD):</strong><br>
+                    • Hotel Econômico: $${(costs.accommodation * 0.6).toFixed(0)}<br>
+                    • Hotel Médio: $${costs.accommodation}<br>
+                    • Hotel Luxo: $${(costs.accommodation * 2).toFixed(0)}<br>
+                    • Airbnb: $${(costs.accommodation * 0.8).toFixed(0)}
+                </div>
+            `;
+        }
+
+        function loadFoodCosts() {
+            const countryCode = document.getElementById('pais-destino').value;
+            const costs = countryCosts[countryCode];
+            
+            document.getElementById('foodCosts').innerHTML = `
+                <div style="text-align: left; font-size: 14px; color: #ccc;">
+                    <strong>Diário por pessoa (USD):</strong><br>
+                    • Econômico: $${(costs.food * 0.6).toFixed(0)}<br>
+                    • Moderado: $${costs.food}<br>
+                    • Luxo: $${(costs.food * 2).toFixed(0)}<br>
+                    • Fast Food: $${(costs.food * 0.4).toFixed(0)}
+                </div>
+            `;
+        }
+
+        function loadTransportCosts() {
+            const countryCode = document.getElementById('pais-destino').value;
+            const costs = countryCosts[countryCode];
+            
+            document.getElementById('transportCosts').innerHTML = `
+                <div style="text-align: left; font-size: 14px; color: #ccc;">
+                    <strong>Diário (USD):</strong><br>
+                    • Ônibus/Metrô: $${(costs.transport * 0.5).toFixed(0)}<br>
+                    • Táxi: $${(costs.transport * 2).toFixed(0)}<br>
+                    • Aluguel Carro: $${(costs.transport * 3).toFixed(0)}<br>
+                    • Uber: $${costs.transport}
+                </div>
+            `;
+        }
+
+        function saveTripCalculation(city, country, duration, travelers, budget) {
+            const calculation = {
+                city: city,
+                country: country,
+                duration: duration,
+                travelers: travelers,
+                budget: budget,
+                date: new Date().toLocaleString()
+            };
+
+            const history = JSON.parse(localStorage.getItem('tripCalculations') || '[]');
+            history.unshift(calculation);
+            if (history.length > 5) history.pop();
+            localStorage.setItem('tripCalculations', JSON.stringify(history));
+        }
+
+
+        document.getElementById('pais-destino').addEventListener('change', () => { loadCountryInfo(); calculateTrip(); populateCities(); });
+        document.getElementById('duracao-viagem').addEventListener('input', calculateTrip);
+        document.getElementById('orcamento-diario').addEventListener('input', calculateTrip);
+        document.getElementById('viajantes').addEventListener('input', calculateTrip);
+        
+        loadCountryInfo();
+        calculateTrip(); 
+        populateCities(); 
+    </script>
+</body>
+</html>
